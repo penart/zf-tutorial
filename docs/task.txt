@@ -1,0 +1,5 @@
+Валюты
+http://www.cbr.ru/scripts/XML_val.asp?d=0
+
+Курсы валют
+http://www.cbr.ru/scripts/XML_daily.asp?date_req=02/03/2002
