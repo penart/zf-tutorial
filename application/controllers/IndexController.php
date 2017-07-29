@@ -2,66 +2,124 @@
 
 class IndexController extends Zend_Controller_Action
 {
-
+    private $_cache;    //Локальный кэш
+    
     public function init()
     {
         /* Initialize action controller here */
+        
+        $frontendOptions = array(
+            'lifetime' => 86400, // cache lifetime 24 часа
+            'automatic_serialization' => true
+        );
+ 
+        $backendOptions = array(
+            'cache_dir' => '../tmp/' // Директория для файлового кеша
+        );
+
+        $this->_cache = Zend_Cache::factory(
+                'Core'
+                , 'File'
+                , $frontendOptions
+                , $backendOptions
+                );
 
     }
 
-    public function indexAction()
+    private function _loadToDb()
     {
-        // action body
-//        $this->view->MyTitle = "Hello wold!";
-//        $this->view->headTitle("Index");
-        //$this->loadAction();
-        //$this->_helper->json(['a'=>'a','b'=>'b']);
+        $valCurs = new Application_Model_DbTable_ValCurs();
+        $srcValCurs = new Test_ValuteCursCBR();
+        $data = $srcValCurs->getValuteCurs();
+        //$dt = $data['dt'];
+        $dt = (new Zend_Date())->toString('yyyy-MM-dd HH:mm:ss');
         
-        $this->loadAction();
+        foreach($data['rows'] as $item){
+            $row = $valCurs->fetchRow("num_code='".$item->getNumCode()."'");
+            if ($row==null) {
+                $row = $valCurs->createRow();                
+                $row->dt = $dt;
+                $row->num_code = $item->getNumCode();
+                $row->char_code = $item->getCharCode();
+                $row->nominal = $item->getNominal();
+                $row->name = $item->getName();
+                $row->value = $item->getValue();
+                $row->save();                
+            } else {                
+                $row->dt = $dt;
+                $row->num_code = $item->getNumCode();
+                $row->char_code = $item->getCharCode();
+                $row->nominal = $item->getNominal();
+                $row->name= $item->getName();
+                $row->value = $item->getValue();                
+                $row->save();
+            }
+        }
         
+    }
+   
+    
+    public function indexAction()
+    {      
+        $this->view->headTitle('Курс валют');
+        $this->view->pageTitle = 'Курс валют';
     }
 
     public function loadAction()
     {
-        $valCurs = new Application_Model_DbTable_ValCurs();
-        $client = new Zend_Http_Client('http://www.cbr.ru/scripts/XML_daily.asp');
-        $response = $client->request('GET');
-        $data = simplexml_load_string($response->getBody());
-        foreach($data->Valute as $node){
-            $row = $valCurs->fetchRow("id='".$node['ID']."'");
-            if($row==null){
-                echo $node['ID'] . '<br/>';
-                echo $node->NumCode . '<br/>';
-                echo $node->CharCode . '<br/>';
-                echo intval($node->Nominal) . '<br/>';
-                echo $node->Name . '<br/>';
-                echo $node->Value . '<br/>';
-                echo floatval(str_replace(',', '.', $node->Value)) . '<br/>';
-
-                $row = $valCurs->createRow();
-                
-                $row->id = $node['ID'];
-                $row->num_code = $node->NumCode;
-                $row->char_code = $node->CharCode;
-                $row->nominal = intval($node->Nominal);
-                $row->name= $node->Name;
-                $row->value = floatval(str_replace(',', '.', $node->Value));
-                $row->save();
-            }
-            else{
-                
-                $row->num_code = $node->NumCode;
-                $row->char_code = $node->CharCode;
-                $row->nominal = intval($node->Nominal);
-                $row->name= $node->Name;
-                $row->value = floatval(str_replace(',', '.', $node->Value));
-                
-                $row->save();
-            }
-        }
-        //$this->_helper->json(['a'=>'a','b'=>'b']);
+        $this->_helper->layout->disableLayout();
+        $this->_helper->viewRenderer->setNoRender(TRUE);
         
+        //проверим если кэш устарел обновим данные
+        if (!$rows = $this->_cache->load('rows')) {
+            $valCurs = new Application_Model_DbTable_ValCurs();
+            $rows = $valCurs->fetchAll('is_active=1')->toArray();
+            $this->_cache->save($rows, 'rows');            
+        } 
+
+        $this->_helper->json(array('rows'=>$rows,'rowcount'=>count($rows)));                
     }
 
+    public function refreshAction()
+    {
+        //перечитаем данные
+        $this->_loadToDb();
+        //очистим кеш
+        $this->_cache->remove('rows');
+        //отдадим клиенту
+        $this->loadAction();
+    }
+
+    public function selectAction()
+    {
+        $this->_helper->layout->disableLayout();
+        $this->_helper->viewRenderer->setNoRender(TRUE);
+        
+        $valCurs = new Application_Model_DbTable_ValCurs();
+        $rows = $valCurs->fetchAll()->toArray();
+
+        $this->_helper->json(array('rows'=>$rows,'rowcount'=>count($rows)));                
+    }
+    
+    public function saveAction()
+    {
+        $this->_helper->layout->disableLayout();
+        $this->_helper->viewRenderer->setNoRender(TRUE);
+        $keyPars = $this->getParam('keyPars');
+        $valCurs = new Application_Model_DbTable_ValCurs();
+        $arrKeyPars = explode(',',$keyPars);
+        
+        foreach($arrKeyPars as $keyPar){
+            $arrKeyPar = explode('=',$keyPar);
+            if ($rows = $valCurs->find($arrKeyPar[0])) {
+                $rows->current()->is_active = $arrKeyPar[1];
+                $rows->current()->save();
+            }
+        }
+            
+        $this->_cache->remove('rows');                    
+        $this->loadAction();                
+    }
+    
 }
 

@@ -4,6 +4,7 @@ class Application_Model_DbTable_ValCurs extends Zend_Db_Table_Abstract
 {
 
     protected $_name = 'val_curs';
+    protected $_primary = 'id';
 
 //    public function getValCurs($id){
 //        
