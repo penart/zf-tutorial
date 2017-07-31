@@ -132,9 +132,11 @@ class IndexController extends Zend_Controller_Action
         
         foreach($keyParsArray as $keyPar){ 
             $keyParArray = explode('=', $keyPar, 2);                        
-            if (count($keyParArray) == 2 && ($key = intval($keyParArray[0])) != 0) {                   
+            $key = intval($keyParArray[0]);
+            if (count($keyParArray) == 2 && $key != 0) {                   
                     $val = intval($keyParArray[1]);                    
-                    if (($rows = $curCourse->find($key))) {
+                    $rows = $curCourse->find($key);
+                    if ($rows) {
                         $rows->current()->is_active = $val;
                         $rows->current()->save();
                     }
