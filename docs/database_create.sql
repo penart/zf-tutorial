@@ -9,12 +9,12 @@ grant all privileges on test1.* to 'test'@'%';
 
 create table test1.currency_course(
     id int not null auto_increment,
-    dt datetime not null,
-    numeric_code varchar(10) not null,
-    char_code varchar(10) not null,
-    nominal int not null,
-    name varchar(100) not null,
+    dt datetime not null default NOW(),
+    numeric_code varchar(10) not null default '',
+    char_code varchar(10) not null default '',
+    nominal smallint not null default 1,
+    name varchar(100) not null default '',
     value decimal(10,4) not null default 0,
-    is_active int not null default 0,
+    is_active tinyint(1) not null default 0,
     primary key (id)
 );
