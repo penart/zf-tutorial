@@ -1,27 +1,24 @@
 <?php
 
-/* 
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-class Test_ValuteCurs
+/**
+* Класс курса валют
+*/
+class Test_CurrencyCourse
 {
-    private $_numCode;
-    private $_charCode;
-    private $_nominal;
-    private $_name;
-    private $_value;
+    private $_numericCode;  //цЦифровой код валюты
+    private $_charCode;     //символьный код валюты
+    private $_nominal;      //единица
+    private $_name;         //наименование 
+    private $_value;        //текущий курс
     
-    public function setNumCode($numCode)
+    public function setNumericCode($numericCode)
     {
-        $this->_numCode = $numCode;
+        $this->_numericCode = $numericCode;
     }
 
-    public function getNumCode()
+    public function getNumericCode()
     {
-        return $this->_numCode;
+        return $this->_numericCode;
     }
 
     public function setCharCode($charCode)
@@ -54,7 +51,7 @@ class Test_ValuteCurs
         return $this->_name;
     }
     
-    public function setvalue($value)
+    public function setValue($value)
     {
         $this->_value = $value;
     }

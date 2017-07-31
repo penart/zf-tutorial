@@ -6,8 +6,8 @@
         <div class="col-md-12">
             <div class="row">
                 <div class="col-md-12">
-                    <button type="button" id="btn_refresh" class="btn btn-default" onclick="refreshCurs()"><span class="glyphicon glyphicon-refresh"></span> Обновить курсы</button>
-                    <button type="button" id="btn_select" class="btn btn-default" onclick="selectValutes()">Выбрать перечень валют</button>
+                    <button type="button" id="btn_refresh" class="btn btn-default" onclick="refreshCurrencyCourse()"><span class="glyphicon glyphicon-refresh"></span> Обновить курс валют</button>
+                    <button type="button" id="btn_select" class="btn btn-default" onclick="selectCurrencyCourse()">Выбрать перечень курсов валют</button>
                 </div>
             </div>
         </div>
@@ -38,12 +38,12 @@
         <div class="col-md-12">Число записей <span class="badge" id="rowcount"></span></div>
     </div>
 
-    <div class="modal fade" id="valuteForm" role="dialog">
+    <div class="modal fade" id="currencyForm" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title">Выберите валюты!</h4>
+                    <h4 class="modal-title">Выберите курсы валют!</h4>
                 </div>
                 <div class="modal-body">
                     <div class="row">
@@ -66,191 +66,36 @@
                 </div>
                 <div class="modal-footer">
                     <div class="col-md-12">
-                        <button type="button" class="btn btn-default" data-dismiss="modal" onclick="saveValutes()">Сохранить</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal" onclick="saveCurrencyCourse()">Сохранить</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
+    <div class="modal fade" id="msgBoxForm" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Внимание!</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <span id="msgBoxText"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="col-md-12">
+                        <button type="button" class="btn btn-default" data-dismiss="modal" onclick="saveCurrencyCourse()">Сохранить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
-
-<script type="text/javascript">
-
-    function getNow() {
-        return new Date();
-    }
-
-    function formatDate(date) {
-        if (date) {
-            var dd = date.getDate();
-            if (dd < 10) dd = '0' + dd;
-            var mm = date.getMonth() + 1;
-            if (mm < 10) mm = '0' + mm;
-            var yyyy = date.getFullYear();
-            return yyyy + '-' + mm + '-' + dd;
-        }
-        else
-            return '';
-    }
-
-    $(document).ready(function () {   
-        loadCurs();
-    });
-    
-    function loadCurs() {
-
-        $('#btn_refresh').prop('disabled',true);
-        $('#rows').find('tr').remove().end();
-        $('#rows').append('<tr><td colspan="5">Загрузка данных ...</td></tr>');
-        $('#rowcount').text('0');
-
-        var param = { dt: getNow().getTime() };
-
-        $.get('index/load', param, function (data) {
-            if (data !== null) {
-                $('#rows').find('tr').remove().end();
-                context = '';
-                
-                if (data.rowcount > 0) {
-                    $('#refresh_time').text(data.rows[0].dt);
-                    $.each(data.rows, function (index, row) {
-                        context += '<tr>';
-                        context += '<td class="col-md-1">' + row.num_code + '</td>';
-                        context += '<td class="col-md-1">' + row.char_code + '</td>';
-                        context += '<td class="col-md-1">' + row.nominal + '</td>';
-                        context += '<td class="col-md-1">' + row.name + '</td>';
-                        context += '<td class="col-md-1">' + row.value + '</td>';
-                        context += '</tr>';
-                    });
-                } else
-                    context += '<tr><td colspan="5">Нет строк</td></tr>';
-                $('#rows').append(context);
-                $('#rowcount').text(data.rowcount);
-            }
-            $('#btn_refresh').prop('disabled', false);
-        });
-    }
-
-    function refreshCurs() {
-
-        $('#btn_refresh').prop('disabled',true);
-        $('#rows').find('tr').remove().end();
-        $('#rows').append('<tr><td colspan="5">Загрузка данных ...</td></tr>');
-        $('#rowcount').text('0');
-
-        var param = { dt: getNow().getTime() };
-
-        $.get('index/refresh', param, function (data) {
-            if (data !== null) {
-                $('#rows').find('tr').remove().end();
-                context = '';
-                
-                if (data.rowcount > 0) {
-                    $('#refresh_time').text(data.rows[0].dt);
-                    $.each(data.rows, function (index, row) {
-                        context += '<tr>';
-                        context += '<td class="col-md-1">' + row.num_code + '</td>';
-                        context += '<td class="col-md-1">' + row.char_code + '</td>';
-                        context += '<td class="col-md-1">' + row.nominal + '</td>';
-                        context += '<td class="col-md-1">' + row.name + '</td>';
-                        context += '<td class="col-md-1">' + row.value + '</td>';
-                        context += '</tr>';
-                    });
-                } else
-                    context += '<tr><td colspan="5">Нет строк</td></tr>';
-                $('#rows').append(context);
-                $('#rowcount').text(data.rowcount);
-            }
-            $('#btn_refresh').prop('disabled', false);
-        });
-    }
-
-    
-    function selectValutes() {
-        
-        $('#valuteForm').modal('show');
-        $('#val_rows').find('tr').remove().end();
-        $('#val_rows').append('<tr><td colspan="4">Загрузка данных ...</td></tr>');
-
-        var param = { dt: getNow().getTime() };
-
-        $.get('index/select', param, function (data) {
-            if (data !== null) {
-                $('#val_rows').find('tr').remove().end();
-                context = '';
-                
-                if (data.rowcount > 0) {
-                    $.each(data.rows, function (index, row) {
-                        context += '<tr>';
-                        context += '<td class="col-md-1"><input type="checkbox" name="valute" value="'+row.id+'" '+(row.is_active==1 ? 'checked': '')+'></td>';
-                        context += '<td class="col-md-1">' + row.num_code + '</td>';
-                        context += '<td class="col-md-1">' + row.char_code + '</td>';
-                        context += '<td class="col-md-1">' + row.name + '</td>';
-                        context += '</tr>';
-                    });
-                } else
-                    context += '<tr><td colspan="4">Нет строк</td></tr>';
-                $('#val_rows').append(context);
-            }
-        });
-    }
-
-    function saveValutes() {
-
-        $('#btn_refresh').prop('disabled',true);
-        $('#rows').find('tr').remove().end();
-        $('#rows').append('<tr><td colspan="5">Загрузка данных ...</td></tr>');
-        $('#rowcount').text('0');
-
-        keyPars = '';
-        isActive = 0;
-        
-        $('input[name="valute"]').each(function() {
-            if($(this).is(':checked'))
-                isActive=1;
-            else
-                isActive=0;
-            
-            if (''===keyPars)
-                keyPars = this.value+'='+isActive;
-            else
-                keyPars += ','+this.value+'='+isActive;
-        });
-        
-        var param = { dt: getNow().getTime(), keyPars: keyPars };
-
-        $.get('index/save', param, function (data) {
-            if (data !== null) {
-                $('#rows').find('tr').remove().end();
-                context = '';
-                
-                if (data.rowcount > 0) {
-                    $('#refresh_time').text(data.rows[0].dt);
-                    $.each(data.rows, function (index, row) {
-                        context += '<tr>';
-                        context += '<td class="col-md-1">' + row.num_code + '</td>';
-                        context += '<td class="col-md-1">' + row.char_code + '</td>';
-                        context += '<td class="col-md-1">' + row.nominal + '</td>';
-                        context += '<td class="col-md-1">' + row.name + '</td>';
-                        context += '<td class="col-md-1">' + row.value + '</td>';
-                        context += '</tr>';
-                    });
-                } else
-                    context += '<tr><td colspan="5">Нет строк</td></tr>';
-                $('#rows').append(context);
-                $('#rowcount').text(data.rowcount);
-            }
-            $('#btn_refresh').prop('disabled', false);
-        });
-    }
-
-    function ShowMessageBox(msg) {
-            $('#MessageBoxText').text(msg);
-            $('#MessageBox').modal('show');
-    }
-
-</script>
-
 
 

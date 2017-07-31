@@ -6,8 +6,7 @@ class IndexController extends Zend_Controller_Action
     
     public function init()
     {
-        /* Initialize action controller here */
-        
+        //Инициализируем кэш        
         $frontendOptions = array(
             'lifetime' => 86400, // cache lifetime 24 часа
             'automatic_serialization' => true
@@ -18,53 +17,26 @@ class IndexController extends Zend_Controller_Action
         );
 
         $this->_cache = Zend_Cache::factory(
-                'Core'
-                , 'File'
-                , $frontendOptions
-                , $backendOptions
+                'Core',
+                'File',
+                $frontendOptions,
+                $backendOptions
                 );
-
-    }
-
-    private function _loadToDb()
-    {
-        $valCurs = new Application_Model_DbTable_ValCurs();
-        $srcValCurs = new Test_ValuteCursCBR();
-        $data = $srcValCurs->getValuteCurs();
-        //$dt = $data['dt'];
-        $dt = (new Zend_Date())->toString('yyyy-MM-dd HH:mm:ss');
-        
-        foreach($data['rows'] as $item){
-            $row = $valCurs->fetchRow("num_code='".$item->getNumCode()."'");
-            if ($row==null) {
-                $row = $valCurs->createRow();                
-                $row->dt = $dt;
-                $row->num_code = $item->getNumCode();
-                $row->char_code = $item->getCharCode();
-                $row->nominal = $item->getNominal();
-                $row->name = $item->getName();
-                $row->value = $item->getValue();
-                $row->save();                
-            } else {                
-                $row->dt = $dt;
-                $row->num_code = $item->getNumCode();
-                $row->char_code = $item->getCharCode();
-                $row->nominal = $item->getNominal();
-                $row->name= $item->getName();
-                $row->value = $item->getValue();                
-                $row->save();
-            }
-        }
         
     }
-   
     
+    /**
+     * Отображение начальной страницы
+     */
     public function indexAction()
     {      
         $this->view->headTitle('Курс валют');
         $this->view->pageTitle = 'Курс валют';
     }
-
+    
+    /**
+     * Загрузка курса валют из кэша по ajax запросу
+     */
     public function loadAction()
     {
         $this->_helper->layout->disableLayout();
@@ -72,52 +44,104 @@ class IndexController extends Zend_Controller_Action
         
         //проверим если кэш устарел обновим данные
         if (!$rows = $this->_cache->load('rows')) {
-            $valCurs = new Application_Model_DbTable_ValCurs();
-            $rows = $valCurs->fetchAll('is_active=1')->toArray();
+            $curCourse = new Application_Model_DbTable_CurrencyCourse();
+            $data = $curCourse->fetchAll(['is_active=?' => 1]);
+            $rows = array();
+            foreach($data as $item){
+                $row = array(
+                    'id' => $item->id,
+                    'dt' => $item->dt,
+                    'isActive' => $item->is_active,
+                    'numericCode' => $item->numeric_code,
+                    'charCode' => $item->char_code,
+                    'nominal' => $item->nominal,
+                    'name' => $item->name,
+                    'value' => $item->value
+                );
+                array_push($rows, $row);
+            }
             $this->_cache->save($rows, 'rows');            
         } 
 
-        $this->_helper->json(array('rows'=>$rows,'rowcount'=>count($rows)));                
+        $this->_helper->json(array('rows'=>$rows, 'rowcount'=>count($rows)));                
     }
-
+    
+    /**
+     * Загрузка обновлёния курса валют из источника по ajax запросу
+     */
     public function refreshAction()
     {
         //перечитаем данные
-        $this->_loadToDb();
-        //очистим кеш
-        $this->_cache->remove('rows');
-        //отдадим клиенту
-        $this->loadAction();
-    }
+        $curCourse = new Application_Model_DbTable_CurrencyCourse();
 
+        try{
+            $curCourse->loadCurrencyCourseFromSource();
+            //очистим кеш
+            $this->_cache->remove('rows');
+            //отдадим клиенту
+            $this->forward('load');
+        }
+        catch(Exception $ex){
+            //Отправим ошибку клиенту
+            $this->_helper->json(array(
+                'error'=> true,
+                'error_message' => $ex->getMessage(),
+                ));
+        }
+    }
+    
+    /**
+     * Загрузка списка валют для формы выбора по ajax запросу
+     */
     public function selectAction()
     {
         $this->_helper->layout->disableLayout();
         $this->_helper->viewRenderer->setNoRender(TRUE);
         
-        $valCurs = new Application_Model_DbTable_ValCurs();
-        $rows = $valCurs->fetchAll()->toArray();
+        $curCourse = new Application_Model_DbTable_CurrencyCourse();
+        $data = $curCourse->fetchAll();
+        $rows = array();
+        foreach($data as $item){
+            $row = array(
+                'id' => $item->id,
+                'isActive' => $item->is_active,
+                'numericCode' => $item->numeric_code,
+                'charCode' => $item->char_code,
+                'nominal' => $item->nominal,
+                'name' => $item->name,
+                'value' => $item->value
+            );
+            array_push($rows, $row);
+        }
 
-        $this->_helper->json(array('rows'=>$rows,'rowcount'=>count($rows)));                
+        $this->_helper->json(array('rows'=>$rows, 'rowcount'=>count($rows)));                
     }
     
+    /**
+     * Сохранение списка выбранных валют
+     */
     public function saveAction()
     {
         $this->_helper->layout->disableLayout();
         $this->_helper->viewRenderer->setNoRender(TRUE);
-        $keyPars = $this->getParam('keyPars');
-        $valCurs = new Application_Model_DbTable_ValCurs();
-        $arrKeyPars = explode(',',$keyPars);
         
-        foreach($arrKeyPars as $keyPar){
-            $arrKeyPar = explode('=',$keyPar);
-            if ($rows = $valCurs->find($arrKeyPar[0])) {
-                $rows->current()->is_active = $arrKeyPar[1];
-                $rows->current()->save();
-            }
+        $curCourse = new Application_Model_DbTable_CurrencyCourse();
+
+        $keyPars = $this->getParam('keyPars');
+        $keyParsArray = explode(',', $keyPars);
+        
+        foreach($keyParsArray as $keyPar){ 
+            $keyParArray = explode('=', $keyPar, 2);                        
+            if (count($keyParArray) == 2 && ($key = intval($keyParArray[0])) != 0) {                   
+                    $val = intval($keyParArray[1]);                    
+                    if (($rows = $curCourse->find($key))) {
+                        $rows->current()->is_active = $val;
+                        $rows->current()->save();
+                    }
+            }                            
         }
             
-        $this->_cache->remove('rows');                    
+        $this->_cache->remove('rows');
         $this->loadAction();                
     }
     
